@@ -10,15 +10,21 @@ using OpenAI;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend",
-        policy =>
-        {
-            policy.WithOrigins("http://localhost:5173")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        });
-});
+    options.AddPolicy("DevCors", policy =>
+    {
+        policy.SetIsOriginAllowed(origin =>
+            origin.StartsWith("http://localhost"))
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
 
+    options.AddPolicy("ProdCors", policy =>
+    {
+        policy.WithOrigins("https://react-client-theta.vercel.app/")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 builder.Services.AddControllers();
 
@@ -57,7 +63,15 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // 1. CORS FIRST — before ANYTHING else
-app.UseCors("AllowFrontend");
+if (builder.Environment.IsDevelopment())
+{
+    app.UseCors("DevCors");
+}
+else
+{
+    app.UseCors("ProdCors");
+}
+
 
 // 2. Then HTTPS redirection
 app.UseHttpsRedirection();
