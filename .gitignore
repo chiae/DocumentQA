@@ -10,6 +10,12 @@
 *.userosscache
 *.sln.docstates
 
+# Ignore all environment-specific appsettings (secrets)
+appsettings.*.json
+
+# But DO track the base appsettings.json (must contain no secrets)
+!appsettings.json
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
