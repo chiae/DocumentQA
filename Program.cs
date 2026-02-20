@@ -22,7 +22,7 @@ builder.Services.AddCors(options =>
 
     options.AddPolicy("ProdCors", policy =>
     {
-        policy.WithOrigins("https://react-client-theta.vercel.app/")
+        policy.WithOrigins("https://react-client-theta.vercel.app")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
