@@ -8,17 +8,31 @@ namespace DocumentQA.Controllers
     public class AskController : ControllerBase
     {
         private readonly IRagService _rag;
+        private readonly ILogger<AskController> _logger;
 
-        public AskController(IRagService rag)
+
+        public AskController(IRagService rag, ILogger<AskController> logger)
         {
             _rag = rag;
+            _logger = logger;
         }
 
         [HttpPost]
         public async Task<IActionResult> Ask([FromBody] AskRequest request)
         {
-            var answer = await _rag.AskAsync(request.Question, request.DocumentId);
-            return Ok(new { answer });
+            try
+            {
+                var answer = await _rag.AskAsync(request.Question, request.DocumentId);
+                return Ok(new { answer });
+            }
+
+
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ASK ERROR");
+                return StatusCode(500, new { error = ex.Message });
+            }
+
         }
     }
 
