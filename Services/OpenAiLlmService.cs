@@ -5,27 +5,23 @@ namespace DocumentQA.Services
     public class OpenAiLmService : ILlmService
     {
         private readonly OpenAIClient _client;
+        private readonly string _model;
 
-        public OpenAiLmService(OpenAIClient client)
+        public OpenAiLmService(IConfiguration config)
         {
-            _client = client;
+            _client = new OpenAIClient(config["OpenAI:ApiKey"]);
+            _model = config["OpenAI:Model"];
         }
 
         public async Task<string> AskAsync(string question, string context)
         {
-            var chat = _client.GetChatClient("gpt-4o-mini");
-
-            // This SDK version uses a single string prompt, not message objects
             var prompt = $"{context}\n\nQuestion: {question}";
+
+            var chat = _client.GetChatClient(_model);
 
             var result = await chat.CompleteChatAsync(prompt);
 
-            // The actual ChatCompletion is in result.Value
-            var completion = result.Value;
-
-            // The text is in completion.OutputText
-            return completion.Content.First().Text ?? String.Empty;
-
+            return result.Value.Content[0].Text ?? "";
         }
     }
 }

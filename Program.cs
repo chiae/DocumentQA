@@ -1,6 +1,7 @@
 using Azure;
 //using Azure.AI.OpenAI;
 using DocumentQA.Data;
+using DocumentQA.Factories;
 using DocumentQA.Services;
 using Microsoft.EntityFrameworkCore;
 using OpenAI;
@@ -25,8 +26,20 @@ builder.Services.AddControllers();
 builder.Services.AddSingleton<ITextChunker, TextChunker>();
 builder.Services.AddScoped<IEmbeddingService, FakeEmbeddingService>();
 builder.Services.AddScoped<IRetrievalService, RetrievalService>();
-builder.Services.AddHttpClient<ILlmService, OllamaLmService>();
 builder.Services.AddScoped<IRagService, RagService>();
+
+// LLM
+builder.Services.AddSingleton<AzureOpenAiLlmService>();
+builder.Services.AddSingleton<OpenAiLmService>();
+builder.Services.AddHttpClient<OllamaLmService>();
+builder.Services.AddSingleton<LlmServiceFactory>();
+
+builder.Services.AddSingleton<ILlmService>(sp =>
+{
+    var factory = sp.GetRequiredService<LlmServiceFactory>();
+    return factory.Create();
+});
+
 
 // PDF extraction
 builder.Services.AddScoped<IPdfTextExtractor, PdfTextExtractor>();
@@ -36,12 +49,6 @@ builder.Services.AddDbContext<VectorDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("VectorDb")));
 builder.Services.AddScoped<IChunkStore, ChunkStore>();
 
-// OpenAI client
-builder.Services.AddSingleton(_ =>
-{
-    var apiKey = builder.Configuration["OpenAI:ApiKey"];
-    return new OpenAIClient(apiKey);
-});
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();

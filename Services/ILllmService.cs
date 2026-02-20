@@ -1,7 +1,7 @@
-﻿namespace DocumentQA.Services
-{
-    public interface ILlmService
+﻿    namespace DocumentQA.Services
     {
-        Task<string> AskAsync(string question, string context);
+        public interface ILlmService
+        {
+            Task<string> AskAsync(string question, string context);
+        }
     }
-}
