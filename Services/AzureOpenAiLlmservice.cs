@@ -12,7 +12,7 @@ namespace DocumentQA.Services
         {
             var endpoint = config["AzureOpenAI:Endpoint"];
             var key = config["AzureOpenAI:ApiKey"];
-            var deployment = config["AzureOpenAI:DeploymentName"];
+            var deployment = config["AzureOpenAI:ChatDeployment"];
 
             var client = new AzureOpenAIClient(
                 new Uri(endpoint),
@@ -28,11 +28,40 @@ namespace DocumentQA.Services
 
         public async Task<string> AskAsync(string question, string context)
         {
-            var prompt = $"{context}\n\nQuestion: {question}";
+            var messages = new List<ChatMessage>
+                    {
+                        ChatMessage.CreateSystemMessage(
+                    "Respond using GitHub-flavored Markdown. Do NOT wrap your answer in code fences. Return raw Markdown only."
+                ),
 
-            var result = await _chat.CompleteChatAsync(prompt);
+                        ChatMessage.CreateUserMessage(
+                            $"{context}\n\nQuestion: {question}"
+                        )
+                    };
+
+            var result = await _chat.CompleteChatAsync(messages);
 
             return result.Value.Content[0].Text ?? "";
         }
+
+        public async Task<string> SummarizeAsync(string question,string text)
+        {
+            var messages = new List<ChatMessage>
+                {
+                    ChatMessage.CreateSystemMessage(
+                        "You are a summarization assistant. Produce a concise 1–2 sentence summary. " +
+                        "Respond using plain text only."
+                    ),
+
+                    ChatMessage.CreateUserMessage(
+                        $"{question}:\n\n{text}"
+                    )
+                };
+
+            var result = await _chat.CompleteChatAsync(messages);
+
+            return result.Value.Content[0].Text ?? "";
+        }
+
     }
 }

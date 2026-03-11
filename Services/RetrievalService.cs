@@ -15,7 +15,7 @@ namespace DocumentQA.Services
             _dbContext = dbContext;
         }
 
-        public async Task<List<ChunkEntity>> RetrieveRelevantChunksAsync(string query, string documentId, int topK = 3)
+        public async Task<List<ChunkEntity>> RetrieveRelevantChunksAsync(string query, string documentId, string userId, int topK = 8)
         {
             // 1. Embed the query
             var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(query);
@@ -27,6 +27,10 @@ namespace DocumentQA.Services
             if (!string.IsNullOrEmpty(documentId))
             {
                 chunkQuery = chunkQuery.Where(c => c.DocumentId == documentId);
+            }
+            else
+            {
+                chunkQuery = chunkQuery.Where(c => c.Document.UserId == userId);
             }
             // 4.Load only the relevant chunks from SQL
             var filteredChunks = await chunkQuery.ToListAsync();

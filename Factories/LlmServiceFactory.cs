@@ -22,6 +22,7 @@ namespace DocumentQA.Factories
                 "azure" => _services.GetRequiredService<AzureOpenAiLlmService>(),
                 "openai" => _services.GetRequiredService<OpenAiLmService>(),
                 "ollama" => _services.GetRequiredService<OllamaLmService>(),
+                "groq" => _services.GetRequiredService<GroqLlmService>(),
                 _ => throw new Exception("Invalid LlmProvider value")
             };
         }

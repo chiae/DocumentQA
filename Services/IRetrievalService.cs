@@ -4,6 +4,6 @@ namespace DocumentQA.Services
 {
     public interface IRetrievalService
     {
-        Task<List<ChunkEntity>> RetrieveRelevantChunksAsync(string query, string documentId, int topK = 3);
+        Task<List<ChunkEntity>> RetrieveRelevantChunksAsync(string query, string documentId, string userId, int topK = 3);
     }
 }

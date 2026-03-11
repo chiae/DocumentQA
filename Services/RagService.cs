@@ -12,10 +12,10 @@ namespace DocumentQA.Services
             _llm = llm;
         }
 
-        async Task<string> IRagService.AskAsync(string question, string? documentId)
+        async Task<string> IRagService.AskAsync(string question, string? documentId, string? userId)
         {
             // Retrieve the top chunks
-            var chunks = await _retrieval.RetrieveRelevantChunksAsync(question,documentId,topK:10);
+            var chunks = await _retrieval.RetrieveRelevantChunksAsync(question, documentId, userId, topK:10);
 
             // Build the context
             var context = String.Join("\n\n", chunks.Select(c => c.Text));

@@ -1,19 +1,24 @@
 ﻿using DocumentQA.Data;
 using DocumentQA.Models;
 using DocumentQA.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.IO;
+using System.Security.Claims;
+using UglyToad.PdfPig;
 
 namespace DocumentQA.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class UploadController : ControllerBase
     {
         private readonly IPdfTextExtractor _extractor;
         private readonly ITextChunker _chunker;
         private readonly IEmbeddingService _embeddingService;
         private readonly IChunkStore _chunkStore;
+        private readonly ILlmService _llm;
         private readonly VectorDbContext _db;
 
         public UploadController(
@@ -21,12 +26,14 @@ namespace DocumentQA.Api.Controllers
             ITextChunker chunker,
             IEmbeddingService embeddingService,
             IChunkStore chunkStore,
+            ILlmService llm,
             VectorDbContext db)
         {
             _extractor = extractor;
             _chunker = chunker;
             _embeddingService = embeddingService;
             _chunkStore = chunkStore;
+            _llm = llm;
             _db = db;
         }
 
@@ -44,19 +51,44 @@ namespace DocumentQA.Api.Controllers
             await file.CopyToAsync(memoryStream);
             memoryStream.Position = 0;
 
+            // Get page count with PdfPig
+            int pageCount;
+            using (var pdf = PdfDocument.Open(memoryStream))
+            {
+                pageCount = pdf.NumberOfPages;
+            }
+
+            // Reset for text extraction (if your extractor needs the stream)
+            memoryStream.Position = 0;
+
+
             // 1. Extract text
             var extractedText = _extractor.ExtractText(memoryStream);
 
+           
+
+
             // 2. Chunk text
             var chunks = _chunker.Chunk(extractedText);
+            var snippet = string.Join("\n\n",chunks.Take(3).Select(c => c.Text));
+
+            var description = await _llm.SummarizeAsync(
+                                   "Summarize this document in 1–2 sentences.",
+                                   snippet
+                                );
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
 
             // 3. Create DocumentEntity
             var document = new DocumentEntity
             {
                 Id = Guid.NewGuid().ToString(),
+                UserId = userId,
                 FileName = file.FileName,
+                Description = description,
                 UploadedAt = DateTime.UtcNow,
-                PageCount = null, // optional
+                PageCount = pageCount,
                 ChunkCount = 0
             };
 
@@ -85,10 +117,7 @@ namespace DocumentQA.Api.Controllers
             return Ok(new
             {
                 message = "PDF processed and stored successfully",
-                documentId = document.Id,
-                fileName = file.FileName,
-                chunkCount = embeddedChunks.Count,
-                textPreview = extractedText.Substring(0, Math.Min(300, extractedText.Length))
+                documentId = document.Id
             });
         }
     }

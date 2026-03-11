@@ -29,6 +29,11 @@ namespace DocumentQA.Services
 
             return result?.Response ?? "";
         }
+
+        Task<string> ILlmService.SummarizeAsync(string question, string context)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public class OllamaResponse

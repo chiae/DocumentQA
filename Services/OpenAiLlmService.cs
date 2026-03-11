@@ -23,5 +23,10 @@ namespace DocumentQA.Services
 
             return result.Value.Content[0].Text ?? "";
         }
+
+        Task<string> ILlmService.SummarizeAsync(string question, string context)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

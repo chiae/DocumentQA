@@ -3,7 +3,6 @@ using System;
 using DocumentQA.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -12,39 +11,34 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DocumentQA.Migrations
 {
     [DbContext(typeof(VectorDbContext))]
-    [Migration("20260215151209_AddDocumentsTable")]
-    partial class AddDocumentsTable
+    [Migration("20260311162642_InitialSqlite")]
+    partial class InitialSqlite
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.2")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
-
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+            modelBuilder.HasAnnotation("ProductVersion", "8.0.2");
 
             modelBuilder.Entity("DocumentQA.Models.ChunkEntity", b =>
                 {
                     b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("DocumentId")
                         .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Embedding")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("Index")
-                        .HasColumnType("int");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Text")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -56,34 +50,68 @@ namespace DocumentQA.Migrations
             modelBuilder.Entity("DocumentQA.Models.DocumentEntity", b =>
                 {
                     b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("TEXT");
 
                     b.Property<int?>("ChunkCount")
-                        .HasColumnType("int");
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("TEXT");
 
                     b.Property<int?>("PageCount")
-                        .HasColumnType("int");
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.ToTable("Documents", (string)null);
                 });
 
+            modelBuilder.Entity("DocumentQA.Models.UserEntity", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
+
+                    b.Property<byte[]>("PasswordSalt")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("Users");
+                });
+
             modelBuilder.Entity("DocumentQA.Models.ChunkEntity", b =>
                 {
-                    b.HasOne("DocumentQA.Models.DocumentEntity", null)
+                    b.HasOne("DocumentQA.Models.DocumentEntity", "Document")
                         .WithMany("Chunks")
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Document");
                 });
 
             modelBuilder.Entity("DocumentQA.Models.DocumentEntity", b =>

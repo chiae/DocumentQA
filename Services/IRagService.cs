@@ -2,6 +2,6 @@
 {
     public interface IRagService
     {
-        Task<string> AskAsync(string question, string? documentId);
+        Task<string> AskAsync(string question, string? documentId,string? userId);
     }
 }
