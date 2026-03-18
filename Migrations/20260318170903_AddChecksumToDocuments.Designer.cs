@@ -3,6 +3,7 @@ using System;
 using DocumentQA.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DocumentQA.Migrations
 {
     [DbContext(typeof(VectorDbContext))]
-    partial class VectorDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260318170903_AddChecksumToDocuments")]
+    partial class AddChecksumToDocuments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.2");
@@ -47,10 +50,6 @@ namespace DocumentQA.Migrations
             modelBuilder.Entity("DocumentQA.Models.DocumentEntity", b =>
                 {
                     b.Property<string>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Checksum")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("ChunkCount")

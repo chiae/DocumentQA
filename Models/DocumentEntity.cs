@@ -21,6 +21,7 @@
         /// Original file name of the uploaded document.
         /// </summary>
         public string FileName { get; set; } = default!;
+        public string Checksum { get; set; }
 
         /// <summary>
         /// Optional user-provided description of the document.
