@@ -1,30 +1,10 @@
-﻿using Azure;
-using Azure.AI.OpenAI;
-using OpenAI.Chat;
+﻿using OpenAI.Chat;
 
 namespace DocumentQA.Services
 {
-    public class AzureOpenAiLlmService : ILlmService
+    public class AzureOpenAiLlmService(ChatClient chat) : ILlmService
     {
-        private readonly ChatClient _chat;
-
-        public AzureOpenAiLlmService(IConfiguration config)
-        {
-            var endpoint = config["AzureOpenAI:Endpoint"];
-            var key = config["AzureOpenAI:ApiKey"];
-            var deployment = config["AzureOpenAI:ChatDeployment"];
-
-            var client = new AzureOpenAIClient(
-                new Uri(endpoint),
-                new AzureKeyCredential(key)
-            );
-            Console.WriteLine($"ENDPOINT: '{endpoint}'");
-            Console.WriteLine($"DEPLOYMENT: '{deployment}'");
-            Console.WriteLine($"KEY LENGTH: {key?.Length}");
-
-
-            _chat = client.GetChatClient(deployment);
-        }
+        private readonly ChatClient _chat = chat;
 
         public async Task<string> AskAsync(string question, string context)
         {
@@ -40,11 +20,10 @@ namespace DocumentQA.Services
                     };
 
             var result = await _chat.CompleteChatAsync(messages);
-
             return result.Value.Content[0].Text ?? "";
         }
 
-        public async Task<string> SummarizeAsync(string question,string text)
+        public async Task<string> SummarizeAsync(string question, string text)
         {
             var messages = new List<ChatMessage>
                 {
@@ -59,7 +38,6 @@ namespace DocumentQA.Services
                 };
 
             var result = await _chat.CompleteChatAsync(messages);
-
             return result.Value.Content[0].Text ?? "";
         }
 

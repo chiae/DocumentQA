@@ -20,6 +20,7 @@ namespace DocumentQA.Api.Controllers
         private readonly IChunkStore _chunkStore;
         private readonly ILlmService _llm;
         private readonly VectorDbContext _db;
+        private readonly IOcrService _ocr;
 
         public UploadController(
             IPdfTextExtractor extractor,
@@ -27,6 +28,7 @@ namespace DocumentQA.Api.Controllers
             IEmbeddingService embeddingService,
             IChunkStore chunkStore,
             ILlmService llm,
+            IOcrService ocr,
             VectorDbContext db)
         {
             _extractor = extractor;
@@ -34,6 +36,7 @@ namespace DocumentQA.Api.Controllers
             _embeddingService = embeddingService;
             _chunkStore = chunkStore;
             _llm = llm;
+            _ocr = ocr;
             _db = db;
         }
 
@@ -51,34 +54,40 @@ namespace DocumentQA.Api.Controllers
             await file.CopyToAsync(memoryStream);
             memoryStream.Position = 0;
 
-            // Get page count with PdfPig
+            // Get page count
             int pageCount;
             using (var pdf = PdfDocument.Open(memoryStream))
             {
                 pageCount = pdf.NumberOfPages;
             }
 
-            // Reset for text extraction (if your extractor needs the stream)
             memoryStream.Position = 0;
 
-
-            // 1. Extract text
+            // 1. Extract text (PDF → OCR fallback)
             var extractedText = _extractor.ExtractText(memoryStream);
 
-           
+            if (string.IsNullOrWhiteSpace(extractedText))
+            {
+                memoryStream.Position = 0;
+                extractedText = await _ocr.ExtractTextAsync(memoryStream);
+            }
 
+            // Blank documents or unreadable ones return a client error response
+            if (string.IsNullOrWhiteSpace(extractedText))
+            {
+                return BadRequest("This document contains no readable text. It may be scanned too poorly or blank.");
+            }
 
             // 2. Chunk text
             var chunks = _chunker.Chunk(extractedText);
-            var snippet = string.Join("\n\n",chunks.Take(3).Select(c => c.Text));
+            var snippet = string.Join("\n\n", chunks.Take(3).Select(c => c.Text));
 
             var description = await _llm.SummarizeAsync(
-                                   "Summarize this document in 1–2 sentences.",
-                                   snippet
-                                );
+                "Summarize this document in 1–2 sentences.",
+                snippet
+            );
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
 
             // 3. Create DocumentEntity
             var document = new DocumentEntity
@@ -95,10 +104,10 @@ namespace DocumentQA.Api.Controllers
             _db.Documents.Add(document);
             await _db.SaveChangesAsync();
 
-             // 4. Embed chunks
+            // 4. Embed chunks
             var embeddedChunks = await _embeddingService.EmbedChunksAsync(chunks);
 
-            // 5. Convert to SQL entities with DocumentId
+            // 5. Convert to SQL entities
             var entities = embeddedChunks.Select(c => new ChunkEntity
             {
                 DocumentId = document.Id,

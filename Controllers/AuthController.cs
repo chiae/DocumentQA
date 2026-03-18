@@ -11,49 +11,29 @@ using System.Text;
 namespace DocumentQA.Controllers
 {
 
-
     [ApiController]
     [Route("api/auth")]
-    public class AuthController : ControllerBase
+    public class AuthController(VectorDbContext context, IConfiguration config) : ControllerBase
     {
-        private readonly VectorDbContext _context;
-        private readonly IConfiguration _config;
-
-        public AuthController(VectorDbContext context, IConfiguration config)
-        {
-            _context = context;
-            _config = config;
-        }
-
-        // ---------------------------
-        // Models
-        // ---------------------------
-        public class RegisterRequest
-        {
-            public string Email { get; set; } = default!;
-            public string Password { get; set; } = default!;
-        }
-
+        private readonly VectorDbContext _context = context;
+        private readonly IConfiguration _config = config;
         public record LoginRequest(string Email, string Password);
 
-        // ---------------------------
         // POST: /api/auth/register
-        // ---------------------------
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
+            // Temporarily disable registration
             return StatusCode(503, "Registration is temporarily disabled.");
-
-            var exists = await _context.Users
-                .AnyAsync(u => u.Email == request.Email);
-
+            // Check if user exists already
+            var exists = await _context.Users.AnyAsync(u => u.Email == request.Email);
 
             // Ensure email is unique and password meets the requirements
             if (exists)
             {
                 return BadRequest("Email already registered.");
             }
-
+            // Ensure the password meets the requirement
             if (!IsStrongPassword(request.Password))
             {
                 return BadRequest("Password must be at least 8 characters and include uppercase, lowercase and number.");
@@ -74,9 +54,7 @@ namespace DocumentQA.Controllers
             return Ok("User created.");
         }
 
-        // ---------------------------
         // POST: /api/auth/login
-        // ---------------------------
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
@@ -131,7 +109,7 @@ namespace DocumentQA.Controllers
         new Claim(JwtRegisteredClaimNames.Email, user.Email),
         new Claim(ClaimTypes.Role, "User")
     };
-            
+
 
             var userKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_config["Jwt:Key"]));

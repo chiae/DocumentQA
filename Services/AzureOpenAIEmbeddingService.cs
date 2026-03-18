@@ -1,6 +1,8 @@
 ﻿using DocumentQA.Models;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace DocumentQA.Services
 {
@@ -8,67 +10,129 @@ namespace DocumentQA.Services
     {
         private readonly HttpClient _http;
         private readonly string _endpoint;
-        private readonly string _apiKey;
         private readonly string _deployment;
+        private readonly string _apiKey;
+
 
         public AzureOpenAIEmbeddingService(IConfiguration config)
         {
-            _http = new HttpClient();
             _endpoint = config["AzureOpenAI:Endpoint"];
-            _apiKey = config["AzureOpenAI:ApiKey"];
+            // Example: https://echia-openai-resource.openai.azure.com/
+
             _deployment = config["AzureOpenAI:EmbeddingDeployment"];
+            // Example: Cohere-embed-v3-english
+
+            _apiKey = config["AzureOpenAI:ApiKey"];
+
+            _http = new HttpClient();
+            _http.DefaultRequestHeaders.Add("api-key", _apiKey);
         }
 
-        public async Task<float[]> GenerateEmbeddingAsync(string text)
+        private string BuildUrl() =>
+            $"{_endpoint}openai/deployments/{_deployment}/embeddings?api-version=2023-05-15";
+
+        // ------------------------------------------------------------
+        // PUBLIC INTERFACE IMPLEMENTATION
+        // ------------------------------------------------------------
+        async Task<float[]> IEmbeddingService.GenerateEmbeddingAsync(string text)
         {
-            var requestBody = new { input = text };
+            return await GenerateEmbeddingInternalAsync(text);
+        }
 
-            var request = new HttpRequestMessage(
-                HttpMethod.Post,
-                $"{_endpoint}/openai/deployments/{_deployment}/embeddings?api-version=2025-01-01-preview"
-            );
+        async Task<List<ChunkEntity>> IEmbeddingService.EmbedChunksAsync(List<TextChunk> chunks)
+        {
+            return await EmbedChunksInternalAsync(chunks);
+        }
 
-            request.Headers.Add("api-key", _apiKey);
-            request.Content = new StringContent(
-                JsonSerializer.Serialize(requestBody),
-                Encoding.UTF8,
-                "application/json"
-            );
+        // ------------------------------------------------------------
+        // INTERNAL IMPLEMENTATION
+        // ------------------------------------------------------------
+        private async Task<float[]> GenerateEmbeddingInternalAsync(string text)
+        {
+            var payload = new
+            {
+                input = new[] { text }
+            };
 
-            var response = await _http.SendAsync(request);
+            var json = JsonSerializer.Serialize(payload);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _http.PostAsync(BuildUrl(), content);
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(json);
+            // Capture raw JSON for debugging
+            var rawJson = await response.Content.ReadAsStringAsync();
 
-            var embedding = doc.RootElement
-                .GetProperty("data")[0]
-                .GetProperty("embedding")
-                .EnumerateArray()
-                .Select(x => x.GetSingle())
-                .ToArray();
 
-            return embedding;
+            using var stream = await response.Content.ReadAsStreamAsync();
+            var result = await JsonSerializer.DeserializeAsync<EmbeddingResponse>(stream);
+            return result?.Data?[0]?.Embedding ?? Array.Empty<float>();
         }
 
-        public async Task<List<ChunkEntity>> EmbedChunksAsync(List<TextChunk> chunks)
+        private async Task<List<ChunkEntity>> EmbedChunksInternalAsync(List<TextChunk> chunks)
         {
+            var texts = chunks.Select(c => c.Text).ToArray();
+
+            var payload = new
+            {
+                input = texts
+            };
+
+            var json = JsonSerializer.Serialize(payload);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _http.PostAsync(BuildUrl(), content);
+            response.EnsureSuccessStatusCode();
+
+            using var stream = await response.Content.ReadAsStreamAsync();
+            var result = await JsonSerializer.DeserializeAsync<EmbeddingResponse>(stream);
+
+            var vectors = result?.Data?.Select(d => d.Embedding).ToArray() ?? Array.Empty<float[]>();
+
             var list = new List<ChunkEntity>();
 
-            foreach (var chunk in chunks)
+            for (int i = 0; i < chunks.Count; i++)
             {
-                var embedding = await GenerateEmbeddingAsync(chunk.Text);
-
                 list.Add(new ChunkEntity
                 {
-                    DocumentId = chunk.DocumentId,
-                    Index = chunk.Index,
-                    Text = chunk.Text,
-                    Embedding = embedding
+                    DocumentId = chunks[i].DocumentId,
+                    Index = chunks[i].Index,
+                    Text = chunks[i].Text,
+                    Embedding = vectors[i]
                 });
             }
 
             return list;
         }
     }
+
+    // ------------------------------------------------------------
+    // RESPONSE MODELS
+    // ------------------------------------------------------------
+    public class EmbeddingResponse
+    {
+        [JsonPropertyName("data")]
+        public List<EmbeddingItem> Data { get; set; }
+        [JsonPropertyName("model")]
+        public string Model { get; set; }
+        [JsonPropertyName("usage")]
+        public UsageItem Usage { get; set; }
+
+    }
+
+    public class EmbeddingItem
+    {
+        [JsonPropertyName("embedding")]
+        public float[] Embedding { get; set; }
+
+    }
+
+    public class UsageItem
+    {
+        [JsonPropertyName("prompt_tokens")]
+        public int PromptTokens { get; set; }
+        [JsonPropertyName("total_tokens")]
+        public int TotalTokens { get; set; }
+    }
+
 }
