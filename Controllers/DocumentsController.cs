@@ -1,5 +1,6 @@
 ﻿using DocumentQA.Data;
 using DocumentQA.Models;
+using DocumentQA.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,10 +14,12 @@ namespace DocumentQA.Controllers
     public class DocumentsController : ControllerBase
     {
         private readonly VectorDbContext _db;
+        private readonly IFileStorage _fileStorage;
 
-        public DocumentsController(VectorDbContext db)
+        public DocumentsController(VectorDbContext db,IFileStorage fileStorage)
         {
             _db = db;
+            _fileStorage = fileStorage;
         }
 
         [HttpGet]
@@ -65,6 +68,32 @@ namespace DocumentQA.Controllers
 
             return Ok(doc);
         }
+        [HttpGet("{id}/file")]
+        public async Task<IActionResult> GetDocumentFile(string id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Ensure the document belongs to the user
+            var doc = await _db.Documents
+                .Where(d => d.Id == id && d.UserId == userId)
+                .FirstOrDefaultAsync();
+
+            if (doc == null)
+                return NotFound(new { error = "Document not found." });
+
+            try
+            {
+                // Open the PDF stream from storage
+                var stream = await _fileStorage.OpenReadAsync(id);
+
+                return File(stream, "application/pdf", doc.FileName);
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound(new { error = "File missing from storage." });
+            }
+        }
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDocument(string id)

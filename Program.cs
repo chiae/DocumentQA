@@ -46,6 +46,15 @@ builder.Services.AddScoped<IRetrievalService, RetrievalService>();
 builder.Services.AddScoped<IRagService, RagService>();
 builder.Services.AddSingleton<IEmbeddingService, AzureOpenAIEmbeddingService>();
 builder.Services.AddSingleton<ILlmService, AzureOpenAiLlmService>();
+
+builder.Services.AddSingleton<IFileStorage>(sp =>
+{
+    var config = sp.GetService<IConfiguration>();
+    var filePath = config["Storage:RootPath"];
+    return new LocalFileStorage(filePath);
+}
+
+);
 builder.Services.AddScoped<IOcrService>(sp =>
 {
     var config = sp.GetRequiredService<IConfiguration>();
@@ -72,6 +81,18 @@ builder.Services.AddSingleton<ChatClient>(sp =>
     return client.GetChatClient(deployment);
 });
 
+// File storage
+builder.Services.AddSingleton<IFileStorage>(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var root = config["Storage:RootPath"];
+    return new LocalFileStorage(root);
+});
+
+// Processing + persistence
+builder.Services.AddScoped<IDocumentProcessor, DocumentProcessor>();
+builder.Services.AddScoped<IDocumentPersistence, DocumentPersistence>();
+
 // PDF extraction
 builder.Services.AddScoped<IPdfTextExtractor, PdfTextExtractor>();
 
@@ -82,6 +103,8 @@ builder.Services.AddDbContext<VectorDbContext>(options =>
 });
 
 builder.Services.AddScoped<IChunkStore, ChunkStore>();
+builder.Services.AddSingleton<IFileHashService, FileHashService>();
+
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
